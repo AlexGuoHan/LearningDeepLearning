@@ -20,14 +20,15 @@ LBL, unlike traditional NPLMs, does not have a hidden layer and words by perform
 
 Given a sequence of context words $h = w_1, ..., w_n$, the model computes the **predicted representation** for the target word by
 
-$$\widehat{q} = \sum c_i \odot \gamma_w$$
+$$\hat{q} = \sum c_i \odot \gamma_w$$
+
 > **$c_i$** weight vector for the context
 
 The scoring function then computes
-$$s_\theta(w,h) = \widehat{q}_h ^T q_w + b_w$$  
+$$s_\theta(w,h) = \hat{q}_h ^T q_w + b_w$$  
 
 This can be made simpler by
-$$\widehat{q} = \frac{1}{n}\sum^n r_{w_i}$$
+$$\hat{q} = \frac{1}{n}\sum^n r_{w_i}$$
 
 As our main concern is learning word representations, we are free to move away from the paradigm of predicting the target from context and do the reverse. This is motivated by the distributed hypothesis:
 >**Distributed hypothesis**
@@ -82,6 +83,8 @@ We can answer the question $a:b \rightarrow c: ?$ by finding the word $d^*$ with
 $$ d^* = \arg\max \frac{\vec{b}^T\vec{x} - \vec{a}^T\vec{x} + \vec{c}^T\vec{x}}{||\vec{b} - \vec{a} + \vec{c}||} $$
 
 
+
+------------------
 ## Word2Vec
 ### The Skip-Gram Model
 The training objective of the Skip-Gram model is to find word representations that are useful for predicting the surrounding words. Given a sequence of training words $w_1,w_2,...,w_T$, the objective of the Skip-Gram model is to maximize the expected log probability:
@@ -120,60 +123,25 @@ $$
 \mathbb{E}_{w\sim P^h_d}\Bigg[log \space \sigma\Big(\Delta s_\theta(w,h)\Big)\Bigg] + k\mathbb{E}_{w\sim P_n}\Bigg[log\bigg(1-\sigma\Big(\Delta s_\theta(w,h)\Big)\bigg)\Bigg]
 $$
 
+
 $$
 \Rightarrow log \space \sigma\Big(\Delta s_\theta(w,h)\Big) + \sum^k\mathbb{E}_{w\sim P_n}\Bigg[log\bigg(1-\sigma\Big(\Delta s_\theta(w,h)\Big)\bigg)\Bigg]
 $$
 
-$$
-\Rightarrow log \space \sigma\Bigg(
-				s_\theta(w,h) - log\Big(
-																kP_n(w)
-														\Big)
-\Bigg)
 
-+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[
-				log\bigg(
-									1-\sigma\Big(
-																s_\theta(w,h) - log\Big(kP_n(w)\Big)
-													\Big)
-						\bigg)
-\Bigg]
+$$
+\Rightarrow log \space \sigma\Bigg(s_\theta(w,h) - log\Big(kP_n(w)\Big)\Bigg) + \sum^k\mathbb{E}_{w\sim P_n}\Bigg[log\bigg(1-\sigma\Big(s_\theta(w,h) - log\Big(kP_n(w)\Big)\Big)\bigg)\Bigg]
+$$
+
+$$\Rightarrow log \space \sigma\Bigg(s_\theta(w,h)\Bigg)+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[log \space\sigma\Big(-s_\theta(w,h)\Big)\Bigg]
 $$
 
 $$
-\Rightarrow log \space \sigma\Bigg(
-				s_\theta(w,h)
-\Bigg)
-
-+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[
-				log \space\sigma\Big(
-															-s_\theta(w,h)
-												\Big)
-\Bigg]
+\Rightarrow log \space \sigma\Bigg(\gamma_w^T q_{w_i} + b_{w_i}\Bigg)+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[log \space\sigma\Big(-\gamma_w^T q_{w_i} - b_{w_i}\Big)\Bigg]
 $$
 
 $$
-\Rightarrow log \space \sigma\Bigg(
-				\gamma_w^T q_{w_i} + b_{w_i}
-\Bigg)
-
-+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[
-				log \space\sigma\Big(
-															-\gamma_w^T q_{w_i} - b_{w_i}
-												\Big)
-\Bigg]
-$$
-
-$$
-\Rightarrow log \space \sigma\Bigg(
-				\gamma_w^T q_{w_i}
-\Bigg)
-
-+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[
-				log \space\sigma\Big(
-															-\gamma_w^T q_{w_i}
-												\Big)
-\Bigg]
+\Rightarrow log \space \sigma\Bigg(\gamma_w^T q_{w_i}\Bigg)+ \sum^k\mathbb{E}_{w\sim P_n}\Bigg[log \space\sigma\Big(-\gamma_w^T q_{w_i}\Big) \Bigg]
 $$
 
 $$
@@ -195,6 +163,7 @@ $$P(w_i) = 1 - \sqrt\frac{t}{f(w_i)}$$
 > **$t$** threshold, usually $10^{-5}$
 
 This aggressively subsamples frequent words (above the threshold) while preserving the rank of frequencies. It was found to accelerates learning and improves the accuracy of learned vectors of rare words.
+
 
 # Code
 
@@ -273,7 +242,11 @@ sampled_ids, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
         unigrams=opts.vocab_counts.tolist()
 	))
 ```
-Compute $logits = log\space\sigma({v^{'}_{w_O}}^T v_{w_I} + b_{w_O}) \\ logits \in \mathbb{R}^{batch,1}, v_{w_O}\in\mathbb{R}^{batch \times emb}, b_{w_O}\in\mathbb{R}^{batch \times 1}$
+Compute
+$$logits = log\space\sigma({v^{'}_{w_O}}^T v_{w_I} + b_{w_O})$$
+
+$$logits \in \mathbb{R}^{batch,1}, v_{w_O}\in\mathbb{R}^{batch \times emb}, b_{w_O}\in\mathbb{R}^{batch \times 1}$$
+
 ```python
 # Weights for labels: [batch_size, emb_dim]
 true_w = tf.nn.embedding_lookup(sm_w_t, labels)
@@ -282,7 +255,10 @@ true_b = tf.nn.embedding_lookup(sm_b, labels)
 # True logits: [batch_size, 1]
 true_logits = tf.reduce_sum(tf.multiply(example_emb, true_w), 1) + true_b
 ```
-Compute $logits = \sum^k \mathbb{E}_{w_i\sim P_n(w)}\Big[log\space\sigma(-{v^{'}_{w_i}}^T v_{w_i} + b_w)\Big] \\ logits \in \mathbb{R}^{batch \times k}, V=\{v_1,...,v_k \in \mathbb{R}^{emb}\}\in\mathbb{R}^{k\times emb}$
+Compute
+$$logits = \sum^k \mathbb{E}_{w_i\sim P_n(w)}\Big[log\space\sigma(-{v^{'}_{w_i}}^T v_{w_i} + b_w)\Big]$$
+
+$$logits \in \mathbb{R}^{batch \times k}, V=\{v_1,...,v_k \in \mathbb{R}^{emb}\}\in\mathbb{R}^{k\times emb}$$
 
 ```python
 # labels are inputs
@@ -379,4 +355,175 @@ sampled_logits = tf.matmul(example_emb,
 
 
         return true_logits, sampled_logits
+```
+
+
+
+## NCE Loss
+**Cross Entropy** between two probability distributions $q$ and $p$ over the same underlying set of events measures the average number of bits needed to identify an event drawn from the set, if a coding scheme is used that is optimized for an "unnatural" probability distribution $q$, rather than the true probability distribution $p$.
+
+$$ H(p,q) = -\sum_x p(x)log\space q(x)$$
+
+#### `tf.zeros_like (tensor, dtype, name, optimize)`
+> given a single tensor, this operation returns a tensor of the same tyoe and shape.
+
+```python
+def nce_loss(self, true_logits, sample_logits):
+
+	# cross entropy (logits, labels)
+	opts = self._options
+	true_xent = tf.nn.sigmoid_cross_entropy_with_logits(
+		labels=tf.ones_like(true_logits), logits=true_logits)
+	sampled_xent = tf.nn.sigmoid_cross_entropy_with_logits(
+		labels=tf.zeros_like(sampled_logits), logits=sampled_logits)
+
+	# nce loss is the sum of true and noise
+	# contributions, averaged
+	nce_loss_tensor = (tf.reduce_sum(true_xent) +
+					tf.reduce_sum(sampled_xent)) /
+					opts.babatch_size
+	return nce_loss_tensor
+```
+
+### optimize
+
+```python
+def optimize(self, loss):
+	# optimizer nodes
+	# linear learning rate decay
+	opts = self._options
+	words_to_train = float(opts.words_per_epoch * opts.epoches_to_train)
+
+	lr = opts.learning_date * tf.maximum(
+		0.0001,
+		1.0 - tf.cast(self._words, tf.float32) / words_to_train
+	)
+
+	self._lr = lr
+	optimizer = tf.train.GradientDescentOptimizer(lr)
+	train = optimizer.minimize(loss,
+								global_step=self.global_step,
+								gate_gradients=optimizer.GATE_NONE)
+```
+### Build Graphs
+$$ d^* = \arg\max \frac{\vec{b}^T\vec{x} - \vec{a}^T\vec{x} + \vec{c}^T\vec{x}}{||\vec{b} - \vec{a} + \vec{c}||} $$
+
+#### `tf.nn.l2_normalize (x, dim, epsilon, name)`
+> normalizes along dimenion using L2 norm
+#### `tf.nn.l2_normalize (x, dim, epsilon, name)`
+> gather slices from parameters according to indices
+
+```python
+def build_eval_graph(self):
+	analogy_a = tf.placeholder(dtype=tf.int32)
+	analogy_b = tf.placeholder(dtype=tf.int32)
+	analogy_c = tf.placeholder(dtype=tf.int32)
+
+	# normalized embeddings
+	nemb = tf.nn.l2_normalize(self._emb, 1)
+
+	a_emb = tf.gather(nemb, analogy_a)
+	b_emb = tf.gather(nemb, analogy_b)
+	c_emb = tf.gather(nemb, analogy_c)
+
+	target = c_emb + b_emb - a_emb
+
+	# cosine distance
+	dist = tf.matmul(target, nemb, transpose_b=True)
+	_, pred_idx = tf.nn.top_k(dist, 4)
+
+	nearby_word = tf.placeholder(dtype=tf.int32)
+	nearby_emb = tf.gather(nemb, nearby_word)
+	nearby_dist = tf.matmul(nearby_emb, nemb, transpose_b=True)
+	nearby_val, nearby_idx = tf.nn.top_k(nearby_dist,
+											min(1000,
+												self._options.vocab_size)
+											)
+	self._analogy_a = analogy_a
+	self._analogy_b = analogy_b
+	self._analogy_c = analogy_c
+
+	self._analogy_pred_idx = pred_idx
+	self._nearby_word - nearby_word
+	self._nearby_val = nearby_val
+	self._nearby_idx = nearby_idx
+
+def build_graph(self):
+	opts = self._options
+	(words,
+		counts,
+		words_per_epoch,
+		self._epoch,
+		self._words,
+		examples,
+		labels) = word2vec.skipgram_word2vec(
+											filename=opts.train_data,
+											batch_size=opts._batch_size
+											window_size=opts.window_size,
+											min_count=opts.min_count,
+											subsample=opts.subsample)
+	(opts.vocab_words,
+		opts.vocab_counts,
+		pts.words_per_epoch) = self._session.run([
+													words,
+													counts,
+													words_per_epoch])
+	opts.vocab_size = len(opts.vocal_words)
+	self._examples = examples
+	self._labels = labels
+	self._id2word = opt.vocab_words
+
+	for i,w in enumerate(self._id2word):
+		self._word2id[w] = i
+
+	true_logits, sampled_logits = self.forward(examples, labels)
+	loss = self.nce_loss(true_logits, sampled_logits)
+	tf.summary_scalar('NCE loss', loss)
+	self._loss = loss
+	self.optimize(loss)
+
+	tf.global_varibales_initializer().run()
+	self.saver = tf.train.Saver()
+
+def train(self):
+	opts = opt._options
+
+	initial_epoch, initial_word = self._session.run([self._epoch, self._words])
+	summary_op = tf.summary.merge_all()
+	summary_writer = tf.summary.FileWriter(opts.save_path, self._session.graph)
+
+	worders = []
+
+	for _ in range(opts.concurrent_steps):
+		t = threading.Thread(target=self._train_thread_body)
+		t.start()
+		worders.append(t)
+
+	last_word, last_time, last_summary_time = initial_words, time.time(), 0
+	last_checkpoint_time = 0
+
+	while True:
+		time.sleep(opts.statistics_interval) # report progress
+		(epoch, step, loss, words, lr) = sess._session.run(
+			[self._epoch, self.global_step, self._loss, self._words, self._lr])
+		last_words, last_time, rate = words, now, (words - last_words) / (now - last_time)
+
+		sys.stdout.flush()
+
+		if now - last_summary_time > opts.summary_interval:
+			summary_str = self._session.run(summary_op)
+			summary_writer.add_summary(summary_str, step)
+			last_summary_time = now
+		if now - last_checkpoint_time > opts.checkpoint_interval:
+			self.saver.save(self._session,
+							os.path.join(opts.save_path, 'model.ckpt'),
+							global_step=step.astype(int))
+			last_checkpoint_time = now
+
+		if epoch != initial_epoch:
+			breakk
+	for t in workers:
+		t.join()
+
+	return epoch
 ```
